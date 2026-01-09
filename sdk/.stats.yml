@@ -1,0 +1,4 @@
+configured_endpoints: 13
+openapi_spec_url: https://storage.googleapis.com/stainless-sdk-openapi-specs/testing-samegardner%2Fgmail-mcp-140950d157ac217180e3cb2475bc72c1af775b1253aef08704cf69242a975a15.yml
+openapi_spec_hash: 526479ca35c2e8887bab3fd0a9c7477a
+config_hash: e2384ea2adfca860c69413b9dbd04eef

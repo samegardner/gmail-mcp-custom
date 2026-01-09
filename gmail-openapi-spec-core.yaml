@@ -1,0 +1,523 @@
+swagger: "2.0"
+info:
+  title: Gmail Core
+  description: Core Gmail API for reading, sending, and managing email messages and drafts.
+  contact:
+    name: Google
+    url: https://google.com
+  version: v1
+host: www.googleapis.com
+basePath: /gmail/v1/users
+schemes:
+- https
+produces:
+- application/json
+consumes:
+- application/json
+securityDefinitions:
+  oauth2:
+    type: oauth2
+    flow: accessCode
+    authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+    tokenUrl: https://oauth2.googleapis.com/token
+    scopes:
+      https://www.googleapis.com/auth/gmail.readonly: Read all emails
+      https://www.googleapis.com/auth/gmail.send: Send email on your behalf
+      https://www.googleapis.com/auth/gmail.compose: Create drafts and send emails
+      https://www.googleapis.com/auth/gmail.modify: Read, compose, send, and modify emails
+security:
+  - oauth2:
+    - https://www.googleapis.com/auth/gmail.modify
+paths:
+  /{userId}/profile:
+    get:
+      summary: Get Profile
+      description: Gets the current user's Gmail profile (email address, message count, etc.)
+      operationId: gmail.users.getProfile
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Profile'
+      tags:
+      - Profile
+
+  /{userId}/messages:
+    get:
+      summary: List Messages
+      description: Lists the messages in the user's mailbox. Use the 'q' parameter to search.
+      operationId: gmail.users.messages.list
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: query
+        name: q
+        description: Gmail search query (e.g., 'from:sender@example.com', 'is:unread', 'subject:hello')
+        type: string
+      - in: query
+        name: maxResults
+        description: Maximum number of messages to return (default 100, max 500)
+        type: integer
+      - in: query
+        name: pageToken
+        description: Page token for pagination
+        type: string
+      - in: query
+        name: labelIds
+        description: Only return messages with these label IDs
+        type: array
+        items:
+          type: string
+      - in: query
+        name: includeSpamTrash
+        description: Include messages from SPAM and TRASH
+        type: boolean
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/ListMessagesResponse'
+      tags:
+      - Messages
+
+  /{userId}/messages/send:
+    post:
+      summary: Send Message
+      description: Sends an email message to the recipients specified in the To, Cc, and Bcc headers.
+      operationId: gmail.users.messages.send
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The message to send (raw RFC 2822 format, base64url encoded)
+        required: true
+        schema:
+          $ref: '#/definitions/Message'
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Message'
+      tags:
+      - Messages
+
+  /{userId}/messages/{id}:
+    get:
+      summary: Get Message
+      description: Gets the full email message by ID, including headers, body, and attachments.
+      operationId: gmail.users.messages.get
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: path
+        name: id
+        description: The message ID
+        required: true
+        type: string
+      - in: query
+        name: format
+        description: The format to return the message in (full, metadata, minimal, raw)
+        type: string
+        enum: [full, metadata, minimal, raw]
+      - in: query
+        name: metadataHeaders
+        description: When format is METADATA, only include these headers
+        type: array
+        items:
+          type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Message'
+      tags:
+      - Messages
+    delete:
+      summary: Delete Message
+      description: Immediately and permanently deletes the specified message (cannot be undone).
+      operationId: gmail.users.messages.delete
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: path
+        name: id
+        description: The message ID to delete
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+      tags:
+      - Messages
+
+  /{userId}/messages/{id}/trash:
+    post:
+      summary: Trash Message
+      description: Moves the specified message to the trash.
+      operationId: gmail.users.messages.trash
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: path
+        name: id
+        description: The message ID to trash
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Message'
+      tags:
+      - Messages
+
+  /{userId}/messages/{messageId}/attachments/{id}:
+    get:
+      summary: Get Attachment
+      description: Gets the specified message attachment.
+      operationId: gmail.users.messages.attachments.get
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: path
+        name: messageId
+        description: The message ID containing the attachment
+        required: true
+        type: string
+      - in: path
+        name: id
+        description: The attachment ID
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/MessagePartBody'
+      tags:
+      - Messages
+
+  /{userId}/drafts:
+    get:
+      summary: List Drafts
+      description: Lists the drafts in the user's mailbox.
+      operationId: gmail.users.drafts.list
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: query
+        name: maxResults
+        description: Maximum number of drafts to return
+        type: integer
+      - in: query
+        name: pageToken
+        description: Page token for pagination
+        type: string
+      - in: query
+        name: q
+        description: Gmail search query to filter drafts
+        type: string
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/ListDraftsResponse'
+      tags:
+      - Drafts
+    post:
+      summary: Create Draft
+      description: Creates a new draft email.
+      operationId: gmail.users.drafts.create
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The draft to create
+        required: true
+        schema:
+          $ref: '#/definitions/Draft'
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Draft'
+      tags:
+      - Drafts
+
+  /{userId}/drafts/{id}:
+    get:
+      summary: Get Draft
+      description: Gets the specified draft.
+      operationId: gmail.users.drafts.get
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: path
+        name: id
+        description: The draft ID
+        required: true
+        type: string
+      - in: query
+        name: format
+        description: The format to return the draft in
+        type: string
+        enum: [full, metadata, minimal, raw]
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Draft'
+      tags:
+      - Drafts
+    put:
+      summary: Update Draft
+      description: Replaces a draft's content.
+      operationId: gmail.users.drafts.update
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: path
+        name: id
+        description: The draft ID to update
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The updated draft content
+        required: true
+        schema:
+          $ref: '#/definitions/Draft'
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Draft'
+      tags:
+      - Drafts
+    delete:
+      summary: Delete Draft
+      description: Immediately and permanently deletes the specified draft.
+      operationId: gmail.users.drafts.delete
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: path
+        name: id
+        description: The draft ID to delete
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+      tags:
+      - Drafts
+
+  /{userId}/drafts/send:
+    post:
+      summary: Send Draft
+      description: Sends the specified draft to the recipients in the To, Cc, and Bcc headers.
+      operationId: gmail.users.drafts.send
+      parameters:
+      - in: path
+        name: userId
+        description: The user's email address. Use 'me' for the authenticated user.
+        required: true
+        type: string
+      - in: body
+        name: body
+        description: The draft to send
+        required: true
+        schema:
+          $ref: '#/definitions/Draft'
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: '#/definitions/Message'
+      tags:
+      - Drafts
+
+definitions:
+  Profile:
+    type: object
+    description: The user's Gmail profile information.
+    properties:
+      emailAddress:
+        type: string
+        description: The user's email address.
+      messagesTotal:
+        type: integer
+        description: Total number of messages in the mailbox.
+      threadsTotal:
+        type: integer
+        description: Total number of threads in the mailbox.
+      historyId:
+        type: string
+        description: The current history record ID.
+
+  Message:
+    type: object
+    description: An email message.
+    properties:
+      id:
+        type: string
+        description: The immutable message ID.
+      threadId:
+        type: string
+        description: The thread ID the message belongs to.
+      labelIds:
+        type: array
+        items:
+          type: string
+        description: List of label IDs applied to this message.
+      snippet:
+        type: string
+        description: A short excerpt from the message body.
+      historyId:
+        type: string
+        description: The history record ID.
+      internalDate:
+        type: string
+        description: Internal message creation timestamp (epoch ms).
+      payload:
+        $ref: '#/definitions/MessagePart'
+      sizeEstimate:
+        type: integer
+        description: Estimated size in bytes.
+      raw:
+        type: string
+        description: The entire email message in RFC 2822 format, base64url encoded.
+
+  MessagePart:
+    type: object
+    description: A single MIME message part.
+    properties:
+      partId:
+        type: string
+        description: The part ID.
+      mimeType:
+        type: string
+        description: The MIME type of this part.
+      filename:
+        type: string
+        description: The filename of the attachment (if applicable).
+      headers:
+        type: array
+        items:
+          $ref: '#/definitions/MessagePartHeader'
+        description: List of headers for this part.
+      body:
+        $ref: '#/definitions/MessagePartBody'
+      parts:
+        type: array
+        items:
+          $ref: '#/definitions/MessagePart'
+        description: Child MIME message parts (for multipart messages).
+
+  MessagePartHeader:
+    type: object
+    description: A message header.
+    properties:
+      name:
+        type: string
+        description: The header name (e.g., 'From', 'To', 'Subject').
+      value:
+        type: string
+        description: The header value.
+
+  MessagePartBody:
+    type: object
+    description: The body of a single MIME message part.
+    properties:
+      attachmentId:
+        type: string
+        description: The attachment ID (for fetching attachment data).
+      size:
+        type: integer
+        description: Size of the body data in bytes.
+      data:
+        type: string
+        description: The body data, base64url encoded.
+
+  Draft:
+    type: object
+    description: A draft email message.
+    properties:
+      id:
+        type: string
+        description: The draft ID.
+      message:
+        $ref: '#/definitions/Message'
+
+  ListMessagesResponse:
+    type: object
+    description: Response for listing messages.
+    properties:
+      messages:
+        type: array
+        items:
+          $ref: '#/definitions/Message'
+        description: List of messages (only id and threadId are populated).
+      nextPageToken:
+        type: string
+        description: Token for the next page of results.
+      resultSizeEstimate:
+        type: integer
+        description: Estimated total number of results.
+
+  ListDraftsResponse:
+    type: object
+    description: Response for listing drafts.
+    properties:
+      drafts:
+        type: array
+        items:
+          $ref: '#/definitions/Draft'
+        description: List of drafts.
+      nextPageToken:
+        type: string
+        description: Token for the next page of results.
+      resultSizeEstimate:
+        type: integer
+        description: Estimated total number of results.

@@ -1,0 +1,597 @@
+openapi: 3.0.3
+info:
+  title: Gmail Core API
+  description: Core Gmail API for reading, sending, and managing email messages and drafts.
+  version: v1
+  contact:
+    name: Google
+    url: https://developers.google.com/gmail/api/
+servers:
+  - url: https://gmail.googleapis.com/gmail/v1
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+          tokenUrl: https://oauth2.googleapis.com/token
+          scopes:
+            https://www.googleapis.com/auth/gmail.readonly: Read all emails
+            https://www.googleapis.com/auth/gmail.send: Send email on your behalf
+            https://www.googleapis.com/auth/gmail.compose: Create drafts and send emails
+            https://www.googleapis.com/auth/gmail.modify: Read, compose, send, and modify emails
+  schemas:
+    Profile:
+      type: object
+      description: User's Gmail profile information
+      properties:
+        emailAddress:
+          type: string
+          description: The user's email address
+        messagesTotal:
+          type: integer
+          description: Total number of messages in the mailbox
+        threadsTotal:
+          type: integer
+          description: Total number of threads in the mailbox
+        historyId:
+          type: string
+          description: The current history record ID
+
+    Message:
+      type: object
+      description: An email message
+      properties:
+        id:
+          type: string
+          description: The immutable message ID
+        threadId:
+          type: string
+          description: The thread ID this message belongs to
+        labelIds:
+          type: array
+          items:
+            type: string
+          description: List of label IDs applied to this message
+        snippet:
+          type: string
+          description: A short excerpt from the message body
+        historyId:
+          type: string
+          description: The history record ID
+        internalDate:
+          type: string
+          description: Internal message creation timestamp (epoch ms)
+        payload:
+          $ref: '#/components/schemas/MessagePart'
+        sizeEstimate:
+          type: integer
+          description: Estimated size in bytes
+        raw:
+          type: string
+          description: The entire email in RFC 2822 format, base64url encoded
+
+    MessagePart:
+      type: object
+      description: A single MIME message part
+      properties:
+        partId:
+          type: string
+          description: The part ID
+        mimeType:
+          type: string
+          description: The MIME type of this part
+        filename:
+          type: string
+          description: The filename of the attachment (if applicable)
+        headers:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessagePartHeader'
+          description: List of headers for this part
+        body:
+          $ref: '#/components/schemas/MessagePartBody'
+        parts:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessagePart'
+          description: Child MIME parts (for multipart messages)
+
+    MessagePartHeader:
+      type: object
+      description: A message header
+      properties:
+        name:
+          type: string
+          description: Header name (e.g., From, To, Subject)
+        value:
+          type: string
+          description: Header value
+
+    MessagePartBody:
+      type: object
+      description: The body of a MIME message part
+      properties:
+        attachmentId:
+          type: string
+          description: Attachment ID for fetching attachment data
+        size:
+          type: integer
+          description: Size of the body data in bytes
+        data:
+          type: string
+          description: The body data, base64url encoded
+
+    Draft:
+      type: object
+      description: A draft email message
+      properties:
+        id:
+          type: string
+          description: The draft ID
+        message:
+          $ref: '#/components/schemas/Message'
+
+    ListMessagesResponse:
+      type: object
+      description: Response for listing messages
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+          description: List of messages (only id and threadId populated)
+        nextPageToken:
+          type: string
+          description: Token for the next page of results
+        resultSizeEstimate:
+          type: integer
+          description: Estimated total number of results
+
+    ListDraftsResponse:
+      type: object
+      description: Response for listing drafts
+      properties:
+        drafts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Draft'
+          description: List of drafts
+        nextPageToken:
+          type: string
+          description: Token for the next page of results
+        resultSizeEstimate:
+          type: integer
+          description: Estimated total number of results
+
+security:
+  - oauth2:
+      - https://www.googleapis.com/auth/gmail.modify
+
+paths:
+  /users/{userId}/profile:
+    get:
+      summary: Get Profile
+      description: Gets the current user's Gmail profile (email address, message count, etc.)
+      operationId: getUserProfile
+      tags:
+        - Profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+
+  /users/{userId}/messages:
+    get:
+      summary: List Messages
+      description: Lists messages in the user's mailbox. Use 'q' parameter for Gmail search queries.
+      operationId: listMessages
+      tags:
+        - Messages
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+        - name: q
+          in: query
+          description: Gmail search query (e.g., 'from:sender@example.com', 'is:unread', 'subject:hello')
+          schema:
+            type: string
+        - name: maxResults
+          in: query
+          description: Maximum number of messages to return (default 100, max 500)
+          schema:
+            type: integer
+            default: 100
+        - name: pageToken
+          in: query
+          description: Page token for pagination
+          schema:
+            type: string
+        - name: labelIds
+          in: query
+          description: Only return messages with these label IDs
+          schema:
+            type: array
+            items:
+              type: string
+        - name: includeSpamTrash
+          in: query
+          description: Include messages from SPAM and TRASH
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListMessagesResponse'
+
+  /users/{userId}/messages/send:
+    post:
+      summary: Send Message
+      description: Sends an email to recipients specified in To, Cc, and Bcc headers.
+      operationId: sendMessage
+      tags:
+        - Messages
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+      requestBody:
+        required: true
+        description: The message to send (raw RFC 2822 format, base64url encoded)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Message'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+  /users/{userId}/messages/{id}:
+    get:
+      summary: Get Message
+      description: Gets a specific message by ID, including headers, body, and attachments.
+      operationId: getMessage
+      tags:
+        - Messages
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+        - name: id
+          in: path
+          required: true
+          description: The message ID
+          schema:
+            type: string
+        - name: format
+          in: query
+          description: The format to return the message in
+          schema:
+            type: string
+            enum: [full, metadata, minimal, raw]
+            default: full
+        - name: metadataHeaders
+          in: query
+          description: When format is METADATA, only include these headers
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+    delete:
+      summary: Delete Message
+      description: Immediately and permanently deletes a message (cannot be undone).
+      operationId: deleteMessage
+      tags:
+        - Messages
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+        - name: id
+          in: path
+          required: true
+          description: The message ID to delete
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Successful deletion
+
+  /users/{userId}/messages/{id}/trash:
+    post:
+      summary: Trash Message
+      description: Moves a message to the trash.
+      operationId: trashMessage
+      tags:
+        - Messages
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+        - name: id
+          in: path
+          required: true
+          description: The message ID to trash
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+  /users/{userId}/messages/{messageId}/attachments/{id}:
+    get:
+      summary: Get Attachment
+      description: Gets a specific message attachment.
+      operationId: getAttachment
+      tags:
+        - Messages
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+        - name: messageId
+          in: path
+          required: true
+          description: The message ID containing the attachment
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          description: The attachment ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePartBody'
+
+  /users/{userId}/drafts:
+    get:
+      summary: List Drafts
+      description: Lists drafts in the user's mailbox.
+      operationId: listDrafts
+      tags:
+        - Drafts
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+        - name: maxResults
+          in: query
+          description: Maximum number of drafts to return
+          schema:
+            type: integer
+            default: 100
+        - name: pageToken
+          in: query
+          description: Page token for pagination
+          schema:
+            type: string
+        - name: q
+          in: query
+          description: Gmail search query to filter drafts
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDraftsResponse'
+    post:
+      summary: Create Draft
+      description: Creates a new draft email.
+      operationId: createDraft
+      tags:
+        - Drafts
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+      requestBody:
+        required: true
+        description: The draft to create
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Draft'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+
+  /users/{userId}/drafts/{id}:
+    get:
+      summary: Get Draft
+      description: Gets a specific draft by ID.
+      operationId: getDraft
+      tags:
+        - Drafts
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+        - name: id
+          in: path
+          required: true
+          description: The draft ID
+          schema:
+            type: string
+        - name: format
+          in: query
+          description: The format to return the draft in
+          schema:
+            type: string
+            enum: [full, metadata, minimal, raw]
+            default: full
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+    put:
+      summary: Update Draft
+      description: Replaces a draft's content.
+      operationId: updateDraft
+      tags:
+        - Drafts
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+        - name: id
+          in: path
+          required: true
+          description: The draft ID to update
+          x-stainless-param: draft_id
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: The updated draft content
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Draft'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+    delete:
+      summary: Delete Draft
+      description: Immediately and permanently deletes a draft.
+      operationId: deleteDraft
+      tags:
+        - Drafts
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+        - name: id
+          in: path
+          required: true
+          description: The draft ID to delete
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Successful deletion
+
+  /users/{userId}/drafts/send:
+    post:
+      summary: Send Draft
+      description: Sends a draft to the recipients in To, Cc, and Bcc headers.
+      operationId: sendDraft
+      tags:
+        - Drafts
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user's email address. Use 'me' for the authenticated user.
+          schema:
+            type: string
+            default: me
+      requestBody:
+        required: true
+        description: The draft to send (only id is required)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Draft'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'

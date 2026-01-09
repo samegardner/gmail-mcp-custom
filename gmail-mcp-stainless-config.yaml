@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=https://app.stainless.com/config.schema.json
+
+edition: 2025-10-10
+
+organization:
+  name: gmail-mcp
+  docs: https://developers.google.com/gmail/api/
+  contact: ''
+
+targets:
+  typescript:
+    edition: typescript.2025-10-10
+    package_name: gmail-mcp
+    production_repo: samegardner/gmail-mcp
+    publish:
+      npm: false
+    options:
+      mcp_server:
+        package_name: gmail-mcp-mcp
+        enable_all_resources: true
+        host:
+          stainless: true
+
+environments:
+  production: https://gmail.googleapis.com/gmail/v1
+
+resources:
+  users:
+    methods:
+      get_profile: get /users/{userId}/profile
+    subresources:
+      messages:
+        models:
+          message: '#/components/schemas/Message'
+          message_part: '#/components/schemas/MessagePart'
+        methods:
+          list: get /users/{userId}/messages
+          send: post /users/{userId}/messages/send
+          retrieve: get /users/{userId}/messages/{id}
+          delete: delete /users/{userId}/messages/{id}
+          trash: post /users/{userId}/messages/{id}/trash
+          get_attachment: get /users/{userId}/messages/{messageId}/attachments/{id}
+      drafts:
+        models:
+          draft: '#/components/schemas/Draft'
+        methods:
+          list: get /users/{userId}/drafts
+          create: post /users/{userId}/drafts
+          retrieve: get /users/{userId}/drafts/{id}
+          update: put /users/{userId}/drafts/{id}
+          delete: delete /users/{userId}/drafts/{id}
+          send: post /users/{userId}/drafts/send
+
+settings:
+  disable_mock_tests: true
+  license: Apache-2.0
+
+readme:
+  example_requests:
+    default:
+      type: request
+      endpoint: get /users/{userId}/profile
+      params:
+        userId: me
+    headline:
+      type: request
+      endpoint: get /users/{userId}/profile
+      params:
+        userId: me

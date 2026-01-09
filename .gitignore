@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-bundle/
+*.mcpb
+
+# Environment and secrets
+.env
+.env.*
+.gmail-token.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript cache
+*.tsbuildinfo
+
+# OAuth credentials
+google-oauth-credentials.json
+*credentials*.json
+*secret*.json
